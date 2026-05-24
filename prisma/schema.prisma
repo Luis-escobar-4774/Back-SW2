@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// ENUMS
+// ============================================================
+enum Rol {
+  ALUMNO
+  PROFESOR
+  ADMIN
+}
+
+enum EstadoEjercicio {
+  PENDIENTE
+  RESUELTO
+}
+
+enum TipoRecompensa {
+  PUNTOS
+  CARTA
+  MONEDAS
+}
+
+enum Rareza {
+  COMUN
+  RARA
+  EPICA
+  LEGENDARIA
+}
+
+// ============================================================
+// USUARIO
+// ============================================================
+model User {
+  id              Int      @id @default(autoincrement())
+  email           String   @unique
+  username        String   @unique
+  passwordHash    String   @map("password_hash")
+  rol             Rol      @default(ALUMNO)
+  puntos          Int      @default(0)
+  monedas         Int      @default(0)
+  rachaEjercicios Int      @default(0) @map("racha_ejercicios")
+  tiempoJugadoSeg Int      @default(0) @map("tiempo_jugado_seg")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  ejerciciosActivos   EjercicioActivo[]
+  ejerciciosResueltos EjercicioResuelto[]
+  cartas              UsuarioCarta[]
+  pasos               UsuarioPaso[]
+
+  @@map("users")
+}
+
+// ============================================================
+// EJERCICIO
+// ============================================================
+model Ejercicio {
+  id                Int      @id @default(autoincrement())
+  titulo            String
+  descripcion       String
+  dificultad        String
+  // casosPrueba: [{ "input": "...", "outputEsperado": "..." }, ...]
+  casosPrueba       Json     @map("casos_prueba")
+  // solucionesCodigo: ["variacion 1", "variacion 2", ...] — strings de codigo aceptados
+  solucionesCodigo  Json     @default("[]") @map("soluciones_codigo")
+  lenguaje          String
+  tiempoEstimadoSeg Int      @map("tiempo_estimado_seg")
+  moduloId          Int?     @map("modulo_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  modulo      Modulo?             @relation(fields: [moduloId], references: [id])
+  activos     EjercicioActivo[]
+  resueltos   EjercicioResuelto[]
+  recompensas Recompensa[]
+
+  @@index([moduloId])
+  @@map("ejercicios")
+}
+
+// EjercicioActivo: asignación de un ejercicio a un usuario.
+model EjercicioActivo {
+  id              Int             @id @default(autoincrement())
+  ejercicioId     Int             @map("ejercicio_id")
+  usuarioId       Int             @map("usuario_id")
+  estado          EstadoEjercicio @default(PENDIENTE)
+  fechaAsignacion DateTime        @default(now()) @map("fecha_asignacion")
+
+  ejercicio Ejercicio @relation(fields: [ejercicioId], references: [id])
+  usuario   User      @relation(fields: [usuarioId], references: [id])
+
+  @@unique([usuarioId, ejercicioId])
+  @@index([usuarioId])
+  @@index([estado])
+  @@map("ejercicios_activos")
+}
+
+// EjercicioResuelto: cada intento de envío (correcto o no).
+// Se permite N intentos por usuario+ejercicio.
+model EjercicioResuelto {
+  id                  Int      @id @default(autoincrement())
+  ejercicioId         Int      @map("ejercicio_id")
+  usuarioId           Int      @map("usuario_id")
+  fechaResuelto       DateTime @default(now()) @map("fecha_resuelto")
+  tiempoResolucionSeg Int      @map("tiempo_resolucion_seg")
+  correcto            Boolean
+  // tipoRespuesta: 'codigo' | 'output' — cómo el alumno mandó la respuesta
+  tipoRespuesta       String   @map("tipo_respuesta")
+  respuesta           String   @db.Text
+
+  ejercicio Ejercicio @relation(fields: [ejercicioId], references: [id])
+  usuario   User      @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@index([ejercicioId])
+  @@map("ejercicios_resueltos")
+}
+
+// ============================================================
+// RECOMPENSA
+// ============================================================
+model Recompensa {
+  id           Int            @id @default(autoincrement())
+  ejercicioId  Int            @map("ejercicio_id")
+  tipo         TipoRecompensa
+  probabilidad Decimal        @db.Decimal(3, 2)
+  cantidad     Int
+
+  ejercicio Ejercicio @relation(fields: [ejercicioId], references: [id])
+
+  @@index([ejercicioId])
+  @@map("recompensas")
+}
+
+// ============================================================
+// CARTAS
+// ============================================================
+model Habilidad {
+  id     Int    @id @default(autoincrement())
+  nombre String
+
+  cartas Carta[]
+
+  @@map("habilidades")
+}
+
+// Carta = template del coleccionable (Mago, Dragón, ...).
+// Las instancias poseídas por jugadores van en UsuarioCarta.
+model Carta {
+  id          Int    @id @default(autoincrement())
+  nombre      String
+  descripcion String
+  rareza      Rareza
+  imagen      String
+  habilidadId Int    @map("habilidad_id")
+
+  habilidad  Habilidad      @relation(fields: [habilidadId], references: [id])
+  niveles    CartaNivel[]
+  poseidaPor UsuarioCarta[]
+
+  @@index([habilidadId])
+  @@map("cartas")
+}
+
+// CartaNivel: stats por nivel de una carta (ej. nivel 1, 2, 3...).
+model CartaNivel {
+  id            Int @id @default(autoincrement())
+  cartaId       Int @map("carta_id")
+  nivel         Int
+  dano          Int
+  salud         Int
+  mana          Int
+  danoHabilidad Int @map("dano_habilidad")
+
+  carta Carta @relation(fields: [cartaId], references: [id], onDelete: Cascade)
+
+  @@unique([cartaId, nivel])
+  @@map("cartas_niveles")
+}
+
+model UsuarioCarta {
+  id          Int      @id @default(autoincrement())
+  usuarioId   Int      @map("usuario_id")
+  cartaId     Int      @map("carta_id")
+  nivelActual Int      @default(1) @map("nivel_actual")
+  enMazo      Boolean  @default(false) @map("en_mazo")
+  obtenidaEn  DateTime @default(now()) @map("obtenida_en")
+
+  usuario User  @relation(fields: [usuarioId], references: [id])
+  carta   Carta @relation(fields: [cartaId], references: [id])
+
+  @@index([usuarioId])
+  @@index([cartaId])
+  @@map("usuario_cartas")
+}
+
+// ============================================================
+// MÓDULOS / PASOS
+// ============================================================
+model Modulo {
+  id          Int    @id @default(autoincrement())
+  titulo      String
+  descripcion String
+  orden       Int    @default(0)
+
+  pasos      Paso[]
+  ejercicios Ejercicio[]
+
+  @@map("modulos")
+}
+
+model Paso {
+  id               Int     @id @default(autoincrement())
+  moduloId         Int     @map("modulo_id")
+  titulo           String
+  contenidoTextual String  @map("contenido_textual")
+  video            String?
+  orden            Int     @default(0)
+
+  modulo   Modulo        @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  progreso UsuarioPaso[]
+
+  @@index([moduloId])
+  @@map("pasos")
+}
+
+// UsuarioPaso: progreso por usuario de cada paso.
+// Esto reemplaza el `completado` que estaba mal puesto en Paso.
+model UsuarioPaso {
+  id           Int       @id @default(autoincrement())
+  usuarioId    Int       @map("usuario_id")
+  pasoId       Int       @map("paso_id")
+  completado   Boolean   @default(false)
+  completadoEn DateTime? @map("completado_en")
+
+  usuario User @relation(fields: [usuarioId], references: [id])
+  paso    Paso @relation(fields: [pasoId], references: [id], onDelete: Cascade)
+
+  @@unique([usuarioId, pasoId])
+  @@map("usuario_pasos")
+}
