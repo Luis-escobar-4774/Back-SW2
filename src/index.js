@@ -15,11 +15,19 @@ const modulosRoutes = require('./routes/modulos');
 const pasosRoutes = require('./routes/pasos');
 
 const app = express();
+
+const allowedOrigins = (process.env.CORS_ORIGIN ?? 'http://localhost:5173,http://localhost:5174')
+  .split(',')
+  .map((o) => o.trim());
+
 const corsOptions = {
-  
-  origin: 'http://localhost:5173', 
-  methods: ['GET', 'POST', 'PUT', 'DELETE'], 
-  allowedHeaders: ['Content-Type', 'Authorization'], 
+  origin: (origin, callback) => {
+    // Permite requests sin origin (curl, Postman, etc.)
+    if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} no permitido`));
+  },
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 };
 app.use(helmet());
 app.use(cors(corsOptions));
