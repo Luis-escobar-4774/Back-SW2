@@ -6,6 +6,8 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 
 const prisma = require('./lib/prisma');
+// Register long-running listeners / services
+require('./services/rewardsListener');
 const authRoutes = require('./routes/auth');
 const ejerciciosRoutes = require('./routes/ejercicios');
 const dashboardRoutes = require('./routes/dashboard');
