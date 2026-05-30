@@ -1,15 +1,6 @@
-const events = require('../lib/events');
-const { EVENTS } = events;
-const cardService = require('./cardService');
 const exerciseRepository = require('../repositories/exerciseRepository');
 const userRepository = require('../repositories/userRepository');
-
-function rewardToPublic(reward) {
-  if (reward.tipo === 'CARTA') {
-    return { tipo: 'CARTA', carta: reward.carta };
-  }
-  return { tipo: reward.tipo, cantidad: reward.cantidad };
-}
+const { RewardFactory } = require('./rewardFactory');
 
 async function applyAttemptOutcome({ tx, usuarioId, ejercicio, correcto, tiempoResolucionSeg }) {
   const rewards = [];
@@ -22,41 +13,16 @@ async function applyAttemptOutcome({ tx, usuarioId, ejercicio, correcto, tiempoR
       const prob = Number(recompensa.probabilidad);
       if (Math.random() > prob) continue;
 
-      if (recompensa.tipo === 'PUNTOS') {
-        await userRepository.updateById(usuarioId, { puntos: { increment: recompensa.cantidad } }, tx);
-        const payload = { usuarioId, tipo: 'PUNTOS', cantidad: recompensa.cantidad, ejercicioId: ejercicio.id };
-        rewards.push(rewardToPublic({ tipo: 'PUNTOS', cantidad: recompensa.cantidad }));
-        emittedEvents.push({ name: EVENTS.REWARD_ASSIGNED, payload });
-        continue;
-      }
+      const reward = RewardFactory.create(recompensa);
 
-      if (recompensa.tipo === 'MONEDAS') {
-        await userRepository.updateById(usuarioId, { monedas: { increment: recompensa.cantidad } }, tx);
-        const payload = { usuarioId, tipo: 'MONEDAS', cantidad: recompensa.cantidad, ejercicioId: ejercicio.id };
-        rewards.push(rewardToPublic({ tipo: 'MONEDAS', cantidad: recompensa.cantidad }));
-        emittedEvents.push({ name: EVENTS.REWARD_ASSIGNED, payload });
-        continue;
-      }
+      const applied = await reward.apply({
+        tx,
+        usuarioId,
+        ejercicio,
+      });
 
-      if (recompensa.tipo === 'CARTA') {
-        const obtained = await cardService.obtainRandomCard(usuarioId, tx);
-        if (obtained.carta) {
-          rewards.push({ tipo: 'CARTA', carta: obtained.carta });
-          emittedEvents.push({
-            name: EVENTS.CARD_OBTAINED,
-            payload: {
-              usuarioId,
-              cartaId: obtained.carta.id,
-              usuarioCartaId: obtained.usuarioCarta.id,
-              ejercicioId: ejercicio.id,
-            },
-          });
-          emittedEvents.push({
-            name: EVENTS.REWARD_ASSIGNED,
-            payload: { usuarioId, tipo: 'CARTA', cartaId: obtained.carta.id, ejercicioId: ejercicio.id },
-          });
-        }
-      }
+      rewards.push(...applied.rewards);
+      emittedEvents.push(...applied.emittedEvents);
     }
 
     await userRepository.updateById(usuarioId, {
