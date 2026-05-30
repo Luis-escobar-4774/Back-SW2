@@ -108,6 +108,10 @@ async function submitAttempt({ usuarioId, ejercicioId, tipo, respuesta, tiempoRe
     attemptId: result.intento.id,
   });
 
+  const solucionEjemplo = !correcto && Array.isArray(ejercicio.solucionesCodigo) && ejercicio.solucionesCodigo.length > 0
+    ? ejercicio.solucionesCodigo[0]
+    : undefined;
+
   return {
     correcto,
     motivo,
@@ -116,6 +120,7 @@ async function submitAttempt({ usuarioId, ejercicioId, tipo, respuesta, tiempoRe
     puntosActuales: result.outcome.usuario.puntos,
     monedasActuales: result.outcome.usuario.monedas,
     rachaEjercicios: result.outcome.usuario.rachaEjercicios,
+    ...(solucionEjemplo !== undefined && { solucionEjemplo }),
   };
 }
 

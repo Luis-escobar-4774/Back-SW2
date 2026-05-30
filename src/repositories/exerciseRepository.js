@@ -37,7 +37,7 @@ async function listActiveByUser(usuarioId, client) {
 async function upsertActive(usuarioId, ejercicioId, client) {
   return withClient(client).ejercicioActivo.upsert({
     where: { usuarioId_ejercicioId: { usuarioId, ejercicioId } },
-    update: {},
+    update: { estado: 'PENDIENTE' },
     create: { usuarioId, ejercicioId },
     include: { ejercicio: true },
   });
