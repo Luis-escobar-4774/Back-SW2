@@ -50,26 +50,65 @@ Verificar: `GET http://localhost:3000/health` debe devolver `{ "status": "ok", "
 ```
 Back-SW2/
 ├── prisma/
-│   ├── schema.prisma       # 13 modelos
-│   └── seed.js             # Datos demo
+│   ├── schema.prisma            # 13 modelos, 4 enums
+│   └── seed.js                  # Datos demo (módulos, ejercicios, cartas)
+│
 ├── src/
-│   ├── index.js            # Bootstrap Express, monta rutas
+│   ├── index.js                 # Bootstrap Express, monta rutas
+│   │
 │   ├── lib/
-│   │   ├── prisma.js       # Cliente Prisma (Singleton)
-│   │   ├── auth.js         # hash / verify password, sign / verify JWT
-│   │   └── validador.js    # Logica de validacion de respuestas
+│   │   ├── prisma.js            # PrismaClient Singleton (safe para hot-reload)
+│   │   ├── events.js            # AppEmitter Singleton + catálogo de EVENTS
+│   │   ├── auth.js              # hash/verify password · sign/verify JWT
+│   │   └── validador.js         # Lógica de validación de respuestas (tipo código/output)
+│   │
 │   ├── middleware/
-│   │   └── requireAuth.js  # Verifica Bearer token
-│   └── routes/
-│       ├── auth.js         # /auth/*
-│       ├── ejercicios.js   # /ejercicios/*
-│       ├── dashboard.js    # /dashboard/*
-│       ├── modulos.js      # /modulos/*
-│       └── pasos.js        # /pasos/*
-├── .env                    # NO commitear
-├── .env.example            # Template para el equipo
+│   │   ├── requireAuth.js       # Verifica Bearer token → 401 si falta
+│   │   └── optionalAuth.js      # Autentica si hay token, continúa si no
+│   │
+│   ├── routes/
+│   │   ├── auth.js              # /auth/*
+│   │   ├── ejercicios.js        # /ejercicios/*
+│   │   ├── dashboard.js         # /dashboard/*
+│   │   ├── modulos.js           # /modulos/*
+│   │   └── pasos.js             # /pasos/*
+│   │
+│   ├── controllers/
+│   │   ├── authController.js        # register, login, me
+│   │   ├── ejerciciosController.js  # list, activos, asignar, detalle, submit
+│   │   ├── dashboardController.js   # index, ranking (usa CachingRankingDecorator)
+│   │   ├── modulosController.js     # list, detalle, ejercicios
+│   │   └── pasosController.js       # completar, descompletar
+│   │
+│   ├── services/
+│   │   ├── authService.js           # register, login, me
+│   │   ├── exerciseService.js       # listExercises, listActive, asignar, submit (orquesta todo)
+│   │   ├── rewardService.js         # applyAttemptOutcome — lógica de recompensas en transacción
+│   │   ├── rewardsFacade.js         # Facade: simplifica acceso a rewardService
+│   │   ├── rewardsListener.js       # Observer: suscriptores del bus de eventos
+│   │   ├── rankingDecorators.js     # Decorator: CachingRankingDecorator + createDefaultRanking
+│   │   ├── cardService.js           # obtainRandomCard, listInventory
+│   │   ├── dashboardService.js      # getDashboard, getInventory
+│   │   ├── rankingService.js        # getRanking (implementación base)
+│   │   ├── learningModuleService.js # listModules, getModule, getModuleExercises
+│   │   └── userProgressService.js   # completeStep, uncompleteStep
+│   │
+│   ├── repositories/
+│   │   ├── exerciseRepository.js    # Queries sobre Ejercicio, EjercicioActivo, EjercicioResuelto
+│   │   ├── userRepository.js        # Queries sobre User
+│   │   ├── cardRepository.js        # Queries sobre Carta, UsuarioCarta
+│   │   ├── moduleRepository.js      # Queries sobre Modulo, Paso
+│   │   └── progressRepository.js    # Queries sobre UsuarioPaso
+│   │
+│   └── validators/
+│       ├── auth.validator.js        # Zod: registerSchema, loginSchema
+│       └── exercise.validator.js    # Zod: assignSchema, submitSchema
+│
+├── .env                    # NO commitear — ver .env.example
+├── .env.example
 ├── package.json
-└── CONTEXT.md              # Este archivo
+├── CONTEXT.md              # Este archivo
+└── PATRONES.md             # Documentación detallada de patrones de diseño
 ```
 
 ---
@@ -131,61 +170,53 @@ Back-SW2/
 
 ---
 
-## 6. Bases de Ingenieria de Software 2 (SOLID + Patrones)
+## 6. Ingenieria de Software 2 — SOLID + Patrones
 
-Esta seccion documenta **donde estamos** y **donde refactorizar** para cumplir con los principios y patrones que pide SW2.
+> Para documentacion detallada con codigo de cada patron, ver **`PATRONES.md`**.
 
-### 6.1 SOLID
+### 6.1 SOLID — estado actual
 
-| Principio | Estado actual | Que falta / refactor sugerido |
+| Principio | Estado | Notas |
 |---|---|---|
-| **S — Single Responsibility** | Las rutas hoy hacen tres cosas: validar input, ejecutar logica de negocio y hablar con la BD. | Separar en **Controllers** (HTTP), **Services** (negocio) y **Repositories** (BD). Ej: `EjercicioService.submit()` orquesta, `EjercicioRepository` queries. |
-| **O — Open/Closed** | El validador usa `if (tipo === 'codigo') ... else if (tipo === 'output')`. Agregar un nuevo tipo obliga a editar la funcion. | Aplicar **Strategy** (ver 6.4). Cada tipo de validacion = una clase / objeto registrado. Agregar tipos sin tocar el switch. |
-| **L — Liskov Substitution** | Pendiente: cuando se introduzcan jerarquias (ej. `Recompensa` → `RecompensaPuntos`, `RecompensaCarta`) hay que asegurar que sustituirlas no rompa el sistema. | Disenar las clases hijas de recompensa con la misma firma (`otorgar(usuario, tx)` por ejemplo). |
-| **I — Interface Segregation** | JavaScript no tiene interfaces nativas, pero se puede via duck typing / TypeScript. | Si migramos a TS: definir interfaces pequenas (`IValidador`, `IOtorgable`, `IRepositorio<T>`) en vez de una interface gigante. |
-| **D — Dependency Inversion** | Las rutas importan `prisma` directamente; los services no existen. | Inyectar dependencias: las rutas reciben un service, el service recibe un repository, el repository recibe `prisma`. Permite mockear en tests. |
+| **S — Single Responsibility** | ✅ Aplicado | Capas separadas: Routes (HTTP) → Controllers (request/response) → Services (negocio) → Repositories (BD). Cada archivo tiene una sola razon para cambiar. |
+| **O — Open/Closed** | ⚠️ Parcial | Repositories y Services son extensibles sin modificar. `validador.js` todavia usa `if/else` por tipo — pendiente migrar a **Strategy** (ver §6.4). |
+| **L — Liskov Substitution** | ⚠️ Pendiente | Aplica cuando se introduzcan jerarquias (Recompensa → RecompensaPuntos, RecompensaCarta). Disenar con firma comun `otorgar(usuario, tx)`. |
+| **I — Interface Segregation** | ⚠️ Pendiente | JS no tiene interfaces nativas. El patron Repository + `withClient` ya las simula. Si se migra a TS: definir `IRepository<T>`, `IValidador`, etc. |
+| **D — Dependency Inversion** | ✅ Aplicado | Services reciben repositories; controllers reciben services. Repositories reciben el cliente Prisma opcionalmente (permite transacciones y mocks). |
 
-### 6.2 Patrones creacionales
+### 6.2 Patrones aplicados
 
-| Patron | Estado | Donde aplicar |
+| Patron | Categoria | Archivo | Estado |
+|---|---|---|---|
+| **Singleton** | Creacional | `src/lib/prisma.js`, `src/lib/events.js` | ✅ Aplicado |
+| **Repository** | Estructural | `src/repositories/*` | ✅ Aplicado |
+| **Facade** | Estructural | `src/services/rewardsFacade.js` | ✅ Aplicado |
+| **Observer** | Comportamiento | `src/lib/events.js` + `src/services/rewardsListener.js` | ✅ Aplicado |
+| **Decorator** | Estructural | `src/services/rankingDecorators.js` | ✅ Aplicado |
+| **Chain of Responsibility** | Comportamiento | `src/middleware/requireAuth.js`, `optionalAuth.js` | ✅ Nativo de Express |
+
+### 6.3 Patrones pendientes (roadmap)
+
+| Patron | Prioridad | Donde aplicar |
 |---|---|---|
-| **Singleton** | **Aplicado** en `src/lib/prisma.js`: una unica instancia de `PrismaClient` reutilizada en todo el app. Evita explotar el pool de conexiones. | — |
-| **Factory Method** | No aplicado. | Crear un `RecompensaFactory.crear(tipo)` que devuelva una instancia de `RecompensaPuntos`, `RecompensaMonedas` o `RecompensaCarta`. La logica de drop se delega al objeto en vez de un switch dentro de `submit`. |
-| **Abstract Factory** | No aplicado. | Si surgen "familias" coherentes (ej. para distintos lenguajes de programacion: `ValidadorPython`, `ValidadorJava` con sus propios normalizadores y reglas), usar una AbstractFactory de validadores por lenguaje. |
-| **Builder** | No aplicado. | Para construir el detalle de un ejercicio con casos de prueba, recompensas, y modulo asociado (DTO complejo), un `EjercicioResponseBuilder` mejora la legibilidad. |
-| **Prototype** | No aplicado. | Para clonar `Carta` template al instanciarla como `UsuarioCarta` (hoy es solo una FK). Util si en el futuro las instancias tienen mutaciones (ej. cartas mejoradas con stats unicas). |
+| **Strategy** | Alta | `src/lib/validador.js` — extraer `ValidadorCodigo` y `ValidadorOutput` a clases con metodo comun `validar(respuesta, ejercicio)`. Agregar nuevos tipos sin tocar el switch. |
+| **Factory Method** | Media | `rewardService.js` — `RecompensaFactory.crear(tipo)` que devuelva `RecompensaPuntos`, `RecompensaMonedas`, `RecompensaCarta`. Elimina el `if/if/if` actual. |
+| **Template Method** | Media | Para los `Validador*` futuros: clase base `ValidadorBase` con hooks `normalizar()` y `comparar()` que las subclases implementan. |
+| **State** | Baja | `EjercicioActivo` PENDIENTE → RESUELTO. Modelarlo como State machine facilita agregar estados futuros (EN_REVISION, VENCIDO). |
+| **Command** | Baja | Acciones del alumno (asignar, enviar, completar paso) como objetos Command con `execute()` — facilita auditoria y undo. |
+| **Abstract Factory** | Baja | Si hay familias de lenguajes: `ValidadorPython`, `ValidadorJava` con sus propios normalizadores y reglas. |
 
-### 6.3 Patrones estructurales
+### 6.4 Descripcion rapida de los patrones aplicados
 
-| Patron | Donde aplicar |
-|---|---|
-| **Adapter** | Envolver Prisma detras de un adaptador `Repository` con metodos del dominio (`UsuarioRepository.crear`, `UsuarioRepository.buscarPorEmail`). Si manana cambiamos de ORM, solo cambia el adaptador. |
-| **Facade** | `AuthFacade` que expone un metodo `registrar(input)` y por dentro coordina: validacion, hash, persistencia y emision de JWT. La ruta se vuelve un one-liner. |
-| **Decorator** | Aplicar a las recompensas: una recompensa base se decora con "doble por racha de 5+" sin tocar la clase base. Tambien aplicable a middleware (ej. `loggingMiddleware(authMiddleware(handler))`). |
-| **Composite** | Modulo → Pasos puede modelarse como Composite: ambos comparten interfaz `Completable.porcentajeProgreso()`. Util si en el futuro hay sub-modulos. |
-| **Proxy** | Cache de lecturas frecuentes (ranking global): un `RankingProxy` envuelve al repository y devuelve resultados memoizados por N segundos. |
+**Singleton (`prisma.js` + `events.js`):** garantiza una unica instancia de PrismaClient (evita agotar el pool de conexiones de Supabase) y una unica instancia del EventEmitter (todos los modulos escuchan el mismo bus). Usa el truco `global.__prisma` / `global.__appEmitter` para sobrevivir al hot-reload de `--watch`.
 
-### 6.4 Patrones de comportamiento
+**Repository (`repositories/*`):** abstrae las queries de Prisma detras de metodos de dominio (`topByPoints`, `markResolved`, `findByEmail`). Los servicios nunca importan `prisma` directamente. El parametro opcional `client` permite que los repositorios participen en transacciones `prisma.$transaction(tx)` sin cambiar su firma.
 
-| Patron | Donde aplicar |
-|---|---|
-| **Strategy** | **Prioritario.** `validador.js` ya tiene la forma: extraer `ValidadorCodigo` y `ValidadorOutput` como clases con metodo comun `validar(respuesta, ejercicio)`. Un registro las indexa por nombre. Permite agregar `ValidadorPseudocodigo`, `ValidadorJudge0` etc. sin tocar `submit`. |
-| **Observer** | Cuando el usuario resuelve correctamente, varias cosas reaccionan: actualizar puntos, otorgar carta, romper/sumar racha, notificar al cliente. Modelar como `EjercicioResueltoEvent` con suscriptores (`PuntosListener`, `CartaListener`, `RachaListener`). Hoy esta todo en `submit`. |
-| **Command** | Cada accion del alumno (asignar, enviar, completar paso) podria modelarse como Command con `execute()` y `undo()`. Facilita auditoria y, si se quiere, "deshacer" un intento. |
-| **State** | El `Ejercicio_Activo` cambia entre PENDIENTE → RESUELTO. Modelarlo como State machine permite agregar estados futuros (EN_REVISION, VENCIDO) sin condicionales dispersos. |
-| **Template Method** | Para los distintos `Validador*`, definir una clase base abstracta `ValidadorBase` con `validar(...)` que llama a hooks `normalizar()` y `comparar()` implementados en subclases. |
-| **Chain of Responsibility** | Express middleware **ya es** Chain of Responsibility. `requireAuth` ilustra el patron (decide si pasar al siguiente handler o cortar). |
+**Facade (`rewardsFacade.js`):** expone `processResult(input)` como punto unico de acceso al subsistema de recompensas. El controlador no sabe que internamente existen `rewardService`, `cardService` y repositorios coordinandose dentro de una transaccion.
 
-### 6.5 Roadmap de refactor a SW2-compliant
+**Observer (`events.js` + `rewardsListener.js`):** el bus de eventos desacopla el submit del ejercicio de todos sus efectos secundarios. `rewardService` acumula eventos en un array durante la transaccion y los emite DESPUES del commit para evitar side-effects sobre datos que podrian hacer rollback. Agregar un listener nuevo (achievements, notificaciones) = un archivo nuevo + una linea en `index.js`.
 
-Orden sugerido (no destructivo, se puede hacer incremental sin romper endpoints):
-
-1. **Crear capa `repositories/`** — extraer todas las queries Prisma de las rutas a `UsuarioRepository`, `EjercicioRepository`, etc. (Adapter + Dependency Inversion)
-2. **Crear capa `services/`** — mover logica de negocio a `AuthService`, `EjercicioService`, `RecompensaService`. (Single Responsibility)
-3. **Refactor `validador.js`** a Strategy con clases `ValidadorCodigo` y `ValidadorOutput` y un registro. (Strategy + Open/Closed)
-4. **Refactor `submit`** con un `RecompensaFactory` y Observers (`PuntosListener`, `CartaListener`, `RachaListener`). (Factory Method + Observer)
-5. **Wrap Prisma queries pesadas** (ranking) con un Proxy de cache. (Proxy)
-6. (Opcional) Migrar a TypeScript para tener interfaces explicitas y aprovechar Liskov / Interface Segregation con el compilador.
+**Decorator (`rankingDecorators.js`):** `CachingRankingDecorator` envuelve `rankingService` con cache en memoria (TTL 30s). Se conecta al Observer: cuando se emite `EXERCISE_COMPLETED`, llama a `invalidate()` automaticamente. El controlador solo llama `getRanking(limit)` — no sabe si el resultado viene de cache o de BD.
 
 ---
 
