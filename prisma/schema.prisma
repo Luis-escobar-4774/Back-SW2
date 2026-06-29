@@ -246,3 +246,5 @@ model UsuarioPaso {
   @@unique([usuarioId, pasoId])
   @@map("usuario_pasos")
 }
+
+
