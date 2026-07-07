@@ -14,6 +14,7 @@ const dashboardRoutes = require('./routes/dashboard');
 const modulosRoutes = require('./routes/modulos');
 const pasosRoutes = require('./routes/pasos');
 const mazoRoutes = require('./routes/mazo');
+const partidaRoutes = require('./routes/partida');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/dashboard', dashboardRoutes);
 app.use('/modulos', modulosRoutes);
 app.use('/pasos', pasosRoutes);
 app.use('/mazo', mazoRoutes);
+app.use('/partida', partidaRoutes);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Not Found' });

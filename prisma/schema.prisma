@@ -34,6 +34,12 @@ enum Rareza {
   LEGENDARIA
 }
 
+enum ResultadoPartida {
+  VICTORIA
+  DERROTA
+  ABANDONO
+}
+
 // ============================================================
 // USUARIO
 // ============================================================
@@ -54,6 +60,7 @@ model User {
   ejerciciosResueltos EjercicioResuelto[]
   cartas              UsuarioCarta[]
   pasos               UsuarioPaso[]
+  partidas            Partida[]
 
   @@map("users")
 }
@@ -247,4 +254,24 @@ model UsuarioPaso {
   @@map("usuario_pasos")
 }
 
+// ============================================================
+// PARTIDA (batalla 1v1 vs bot) — HU 9.J / 9.9 / 9.10 / 9.3
+// ============================================================
+model Partida {
+  id            Int               @id @default(autoincrement())
+  usuarioId     Int               @map("usuario_id")
+  resultado     ResultadoPartida?
+  puntosGanados Int               @default(0) @map("puntos_ganados")
+  ronda         Int               @default(1)
+  iniciadaEn    DateTime          @default(now()) @map("iniciada_en")
+  finalizadaEn  DateTime?         @map("finalizada_en")
+  // Snapshot completo y autocontenido del estado de juego — mismo patrón que
+  // Ejercicio.casosPrueba/solucionesCodigo (columna Json en vez de tablas satélite).
+  estado        Json              @default("{}")
+
+  usuario User @relation(fields: [usuarioId], references: [id])
+
+  @@index([usuarioId])
+  @@map("partidas")
+}
 

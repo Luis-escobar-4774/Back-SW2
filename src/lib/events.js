@@ -7,6 +7,7 @@ const EVENTS = {
   REWARD_ASSIGNED: 'reward.assigned',
   CARD_OBTAINED: 'card.obtained',
   LESSON_COMPLETED: 'lesson.completed',
+  GAME_WON: 'game.won',
 };
 
 // Singleton-safe emitter: reuse across hot-reloads in development

@@ -62,4 +62,10 @@ appEmitter.on(EVENTS.EXERCISE_COMPLETED, () => {
   rankingServiceCached.invalidate();
 });
 
+// Ganar una partida de batalla también otorga puntos (+5) — mismo patrón de
+// invalidación que EXERCISE_COMPLETED (REGLAS_BATALLA.md §3.4).
+appEmitter.on(EVENTS.GAME_WON, () => {
+  rankingServiceCached.invalidate();
+});
+
 module.exports = { rankingServiceCached, CachingRankingDecorator };
