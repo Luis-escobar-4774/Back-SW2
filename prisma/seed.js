@@ -11,6 +11,9 @@ const habilidadesData = [
   { nombre: 'Golpe Critico' },
 ];
 
+// HU 9.7 — 21 cartas con distribucion aproximada 60/25/10/5% (12 comun, 5 rara,
+// 2 epica, 2 legendaria; se mantienen las 2 legendarias originales en vez de
+// bajar a 1 para no tocar las 8 cartas ya sembradas).
 const cartasData = [
   { nombre: 'Mago Novato',     descripcion: 'Aprendiz de la academia',   rareza: 'COMUN',      imagen: 'mago_novato.png',     habilidadIdx: 0 },
   { nombre: 'Guerrero Joven',  descripcion: 'Esgrime una espada basica', rareza: 'COMUN',      imagen: 'guerrero_joven.png',  habilidadIdx: 4 },
@@ -20,6 +23,20 @@ const cartasData = [
   { nombre: 'Asesino Silencioso', descripcion: 'Ataca por la espalda',   rareza: 'EPICA',      imagen: 'asesino.png',         habilidadIdx: 4 },
   { nombre: 'Dragon de Hielo', descripcion: 'Bestia ancestral',          rareza: 'LEGENDARIA', imagen: 'dragon_hielo.png',    habilidadIdx: 3 },
   { nombre: 'Fenix Eterno',    descripcion: 'Renace de las cenizas',     rareza: 'LEGENDARIA', imagen: 'fenix.png',           habilidadIdx: 0 },
+  // -- Ampliacion HU 9.7 --
+  { nombre: 'Escudero Novato',      descripcion: 'Recien alistado en la guardia',     rareza: 'COMUN', imagen: 'escudero_novato.png',      habilidadIdx: 1 },
+  { nombre: 'Arquero Iniciado',     descripcion: 'Aprende a tensar el arco',          rareza: 'COMUN', imagen: 'arquero_iniciado.png',     habilidadIdx: 3 },
+  { nombre: 'Curandera Aldeana',    descripcion: 'Conoce hierbas y remedios',         rareza: 'COMUN', imagen: 'curandera_aldeana.png',    habilidadIdx: 2 },
+  { nombre: 'Bandido Callejero',    descripcion: 'Golpea rapido y desaparece',        rareza: 'COMUN', imagen: 'bandido_callejero.png',    habilidadIdx: 4 },
+  { nombre: 'Monje Errante',        descripcion: 'Busca la iluminacion viajando',     rareza: 'COMUN', imagen: 'monje_errante.png',        habilidadIdx: 1 },
+  { nombre: 'Explorador del Bosque',descripcion: 'Conoce cada sendero oculto',        rareza: 'COMUN', imagen: 'explorador_bosque.png',    habilidadIdx: 0 },
+  { nombre: 'Recluta de la Guardia',descripcion: 'Recien jurado al reino',            rareza: 'COMUN', imagen: 'recluta_guardia.png',      habilidadIdx: 3 },
+  { nombre: 'Alquimista Aprendiz',  descripcion: 'Mezcla pociones inestables',        rareza: 'COMUN', imagen: 'alquimista_aprendiz.png',  habilidadIdx: 2 },
+  { nombre: 'Espadachin Novato',    descripcion: 'Practica esgrima desde la infancia',rareza: 'COMUN', imagen: 'espadachin_novato.png',    habilidadIdx: 4 },
+  { nombre: 'Chaman Menor',         descripcion: 'Habla con los espiritus menores',   rareza: 'COMUN', imagen: 'chaman_menor.png',         habilidadIdx: 0 },
+  { nombre: 'Paladin de la Luz',    descripcion: 'Jura proteger a los debiles',       rareza: 'RARA',  imagen: 'paladin_de_la_luz.png',    habilidadIdx: 2 },
+  { nombre: 'Nigromante Menor',     descripcion: 'Susurra a los huesos olvidados',    rareza: 'RARA',  imagen: 'nigromante_menor.png',     habilidadIdx: 3 },
+  { nombre: 'Arquero Elfico',       descripcion: 'Nunca falla un tiro',               rareza: 'RARA',  imagen: 'arquero_elfico.png',       habilidadIdx: 4 },
 ];
 
 // Pasos: contenidoTextual usa markdown (parseado en el front).
