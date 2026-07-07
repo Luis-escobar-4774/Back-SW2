@@ -124,9 +124,17 @@ automático en cada arranque del contenedor):
 docker compose run --rm backend npx prisma db push
 ```
 
-> ⚠️ No pude probar el build de estos Dockerfiles en esta sesión — esta máquina no tiene el daemon de Docker
-> instalado. Están escritos siguiendo el patrón estándar (multi-stage para el front, Alpine + openssl para
-> Prisma en el back), pero la primera vez que alguien del equipo los corra, avisen si algo no levanta.
+> ✅ **Verificado** (2026-07-07, Docker Desktop 29.6.1): `docker compose up --build` levanta ambos
+> contenedores sin errores. Backend responde `GET /health` → `{"status":"ok","db":"up"}` conectado a la
+> Supabase real; frontend sirve `200` en `http://localhost:5173` vía nginx. Un endpoint de negocio
+> (`POST /auth/login`) probado contra el contenedor confirma que Zod/JWT funcionan dentro de la imagen.
+>
+> **Gotcha encontrado y a tener en cuenta:** `docker run --env-file .env` (comando suelto, fuera de compose)
+> **no** saca las comillas de `.env` — con `DATABASE_URL="postgresql://..."` (con comillas, como está en este
+> repo) el valor le llega a Prisma con las comillas incluidas y falla la validación del protocolo
+> (`the URL must start with the protocol postgresql://`). `docker compose up` sí lo parsea bien (usa un
+> parser más permisivo que respeta comillas) — por eso la Opción A de este documento usa siempre
+> `docker compose`, nunca `docker run --env-file` suelto.
 
 ### Opción B — Manual (como hasta ahora)
 
@@ -211,7 +219,8 @@ no algo que se resuelva con más código.
 - **Limpieza de datos de prueba**: el usuario `qa_batalla@cardly.test` quedó en la base compartida (con
   12 cartas otorgadas manualmente para poder probar sin depender del azar). Borrar si molesta, o dejarlo
   como usuario de smoke-test.
-- **Docker sin probar**: ver advertencia en §4 — validar en la primera corrida del equipo.
+- ~~Docker sin probar~~ — verificado en esta sesión (ver §4), `docker compose up --build` funciona de punta
+  a punta con la Supabase compartida real.
 
 ---
 
