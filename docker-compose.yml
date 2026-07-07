@@ -1,0 +1,47 @@
+# Levanta Cardly completo (backend + frontend) para desarrollo local con un
+# solo comando: docker compose up --build
+#
+# Requisito por defecto: este repo (Back-SW2) y Front-SW2 clonados como
+# carpetas HERMANAS (mismo layout que ya usa el equipo):
+#   algun-directorio/
+#     Back-SW2/    <- estas parado aca
+#     Front-SW2/
+#
+# El backend usa el .env local de ESTE repo (DATABASE_URL de Supabase
+# compartido, JWT_SECRET, etc. — el mismo que ya usan con `npm run dev`).
+# Docker Compose NO levanta una base de datos propia: se conecta a la misma
+# Supabase compartida de siempre.
+#
+# Si no tenes Front-SW2 clonado al lado, reemplaza el "context" del servicio
+# frontend por la URL del repo en git (Docker soporta contextos remotos):
+#   context: https://github.com/salcar420/Front-SW2.git#main
+# (ojo: en ese caso siempre construye la ULTIMA version pusheada a main, no
+# tus cambios locales sin commitear).
+#
+# URLs una vez levantado:
+#   Backend:  http://localhost:3000
+#   Frontend: http://localhost:5173
+
+services:
+  backend:
+    build:
+      context: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./.env
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ../Front-SW2
+      args:
+        # El navegador del usuario corre este JS por fuera de la red interna
+        # de Docker, por eso apunta a localhost (el puerto publicado del
+        # backend), NO al nombre de servicio "backend".
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
