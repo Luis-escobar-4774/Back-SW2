@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // authService.test.js
 // Pruebas de Caja Blanca sobre authService.js (registro, login y perfil "me").
 // Se cubre cada rama (if/else, try/catch, instanceof) de las 3 funciones exportadas.
@@ -101,10 +102,64 @@ describe('Pruebas de Caja Blanca - authService.js', () => {
       userRepository.create.mockRejectedValue(new Error('DB caída'));
 
       await expect(authService.register(input)).rejects.toThrow('DB caída');
+=======
+jest.mock('../repositories/userRepository');
+jest.mock('../lib/auth');
+jest.mock('../services/emailConfirmationService');
+
+const authService = require('../services/authService');
+const userRepository = require('../repositories/userRepository');
+const auth = require('../lib/auth');
+const emailConfirmationService = require('../services/emailConfirmationService');
+
+const mockUser = { id: 1, email: 'a@b.com', username: 'testuser', passwordHash: '$2a$10$hash', puntos: 0, rol: 'ALUMNO' };
+
+describe('authService.js', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    auth.hashPassword.mockResolvedValue('$2a$10$hashed');
+    auth.verifyPassword.mockResolvedValue(true);
+    auth.signToken.mockReturnValue('jwt-token');
+    auth.toPublicUser.mockImplementation((u) => {
+      const { passwordHash, ...rest } = u;
+      return rest;
+    });
+    emailConfirmationService.createAndSendConfirmation.mockResolvedValue('token-abc');
+  });
+
+  describe('register', () => {
+    test('debe registrar un usuario nuevo', async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.findByUsername.mockResolvedValue(null);
+      userRepository.create.mockResolvedValue(mockUser);
+
+      const result = await authService.register({ email: 'a@b.com', username: 'testuser', password: 'Clave1234' });
+
+      expect(userRepository.findByEmail).toHaveBeenCalledWith('a@b.com');
+      expect(userRepository.findByUsername).toHaveBeenCalledWith('testuser');
+      expect(userRepository.create).toHaveBeenCalledWith({ email: 'a@b.com', username: 'testuser', passwordHash: '$2a$10$hashed' });
+      expect(result.user).not.toHaveProperty('passwordHash');
+      expect(result.token).toBe('jwt-token');
+      expect(emailConfirmationService.createAndSendConfirmation).toHaveBeenCalledWith(1, 'a@b.com', 'testuser');
+    });
+
+    test('debe lanzar 409 si el email ya existe', async () => {
+      userRepository.findByEmail.mockResolvedValue(mockUser);
+
+      await expect(authService.register({ email: 'a@b.com', username: 'otro', password: 'Clave1234' })).rejects.toThrow('Email already in use');
+    });
+
+    test('debe lanzar 409 si el username ya existe', async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+      userRepository.findByUsername.mockResolvedValue(mockUser);
+
+      await expect(authService.register({ email: 'b@b.com', username: 'testuser', password: 'Clave1234' })).rejects.toThrow('Username already in use');
+>>>>>>> b730210 (pruebas unitarias)
     });
   });
 
   describe('login', () => {
+<<<<<<< HEAD
     // Camino 6: el usuario no existe -> if (!user) => true
     test('Debe lanzar 401 si el usuario no existe', async () => {
       userRepository.findByEmail.mockResolvedValue(null);
@@ -138,10 +193,34 @@ describe('Pruebas de Caja Blanca - authService.js', () => {
         user: { id: 'u1', email: 'x@test.com', username: 'x' },
         token: 'token-xyz',
       });
+=======
+    test('debe iniciar sesión con credenciales correctas', async () => {
+      userRepository.findByEmail.mockResolvedValue(mockUser);
+
+      const result = await authService.login({ email: 'a@b.com', password: 'Clave1234' });
+
+      expect(auth.verifyPassword).toHaveBeenCalledWith('Clave1234', mockUser.passwordHash);
+      expect(result.token).toBe('jwt-token');
+      expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    test('debe lanzar 401 si el email no existe', async () => {
+      userRepository.findByEmail.mockResolvedValue(null);
+
+      await expect(authService.login({ email: 'no@existe.com', password: 'Clave1234' })).rejects.toThrow('Invalid email or password');
+    });
+
+    test('debe lanzar 401 si la contraseña es incorrecta', async () => {
+      userRepository.findByEmail.mockResolvedValue(mockUser);
+      auth.verifyPassword.mockResolvedValue(false);
+
+      await expect(authService.login({ email: 'a@b.com', password: 'MalaClave' })).rejects.toThrow('Invalid email or password');
+>>>>>>> b730210 (pruebas unitarias)
     });
   });
 
   describe('me', () => {
+<<<<<<< HEAD
     // Camino 9: usuario no encontrado -> if (!user) => true
     test('Debe lanzar 404 si el usuario no existe', async () => {
       userRepository.selectPublicById.mockResolvedValue(null);
@@ -160,6 +239,21 @@ describe('Pruebas de Caja Blanca - authService.js', () => {
       const resultado = await authService.me('u1');
 
       expect(resultado).toEqual({ user });
+=======
+    test('debe devolver el perfil público del usuario', async () => {
+      userRepository.selectPublicById.mockResolvedValue({ id: 1, email: 'a@b.com', username: 'testuser', puntos: 10 });
+
+      const result = await authService.me(1);
+
+      expect(userRepository.selectPublicById).toHaveBeenCalledWith(1);
+      expect(result.user.username).toBe('testuser');
+    });
+
+    test('debe lanzar 404 si el usuario no existe', async () => {
+      userRepository.selectPublicById.mockResolvedValue(null);
+
+      await expect(authService.me(999)).rejects.toThrow('User not found');
+>>>>>>> b730210 (pruebas unitarias)
     });
   });
 });
