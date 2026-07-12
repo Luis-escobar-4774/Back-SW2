@@ -2,6 +2,7 @@ const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const { hashPassword, verifyPassword, signToken, toPublicUser } = require('../lib/auth');
 const userRepository = require('../repositories/userRepository');
+const { createAndSendConfirmation } = require('./emailConfirmationService');
 
 function tokenFor(user) {
   return signToken({ sub: user.id, email: user.email, username: user.username });
@@ -28,6 +29,9 @@ async function register({ email, username, password }) {
 
     const passwordHash = await hashPassword(password);
     const user = await userRepository.create({ email, username, passwordHash });
+
+    createAndSendConfirmation(user.id, user.email, user.username).catch(() => {});
+
     return { user: toPublicUser(user), token: tokenFor(user) };
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {

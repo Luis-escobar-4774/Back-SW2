@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cardly_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cardly_test
+      JWT_SECRET: test-secret-for-ci-only
+      JWT_EXPIRES_IN: 7d
+      PORT: 3000
+      NODE_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx prisma generate
+
+      - name: Push schema to DB
+        run: npx prisma db push --force-reset --accept-data-loss
+
+      - name: Seed database
+        run: npm run seed
+
+      - name: Run unit tests
+        run: node node_modules/jest/bin/jest.js src/test/battleEngine.test.js src/test/cardService.test.js src/test/deckService.test.js src/test/partidaService.test.js --forceExit
+
+      - name: Run integration tests
+        run: node node_modules/jest/bin/jest.js --testPathPatterns=integration --forceExit

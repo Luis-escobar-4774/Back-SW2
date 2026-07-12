@@ -36,6 +36,7 @@ async function selectPublicById(id, client) {
       monedas: true,
       rachaEjercicios: true,
       tiempoJugadoSeg: true,
+      emailConfirmado: true,
       createdAt: true,
       updatedAt: true,
     },

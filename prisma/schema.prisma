@@ -53,6 +53,10 @@ model User {
   monedas         Int      @default(0)
   rachaEjercicios Int      @default(0) @map("racha_ejercicios")
   tiempoJugadoSeg Int      @default(0) @map("tiempo_jugado_seg")
+  emailConfirmado              Boolean?  @default(false) @map("email_confirmado")
+  emailConfirmationToken       String?   @unique @map("email_confirmation_token")
+  emailConfirmationTokenExpires DateTime? @map("email_confirmation_token_expires")
+
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
