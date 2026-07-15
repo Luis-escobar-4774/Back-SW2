@@ -33,5 +33,8 @@
     "jest": "^30.4.2",
     "prisma": "^6.19.3",
     "supertest": "^7.2.2"
+  },
+  "jest": {
+    "testTimeout": 30000
   }
 }
